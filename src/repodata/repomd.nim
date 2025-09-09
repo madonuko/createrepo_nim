@@ -6,9 +6,9 @@ type
     csum*: string ## <checksum type="sha256" />
     osum*: Option[string] ## <open-checksum type="sha256" />
     location_href*: string
-    timestamp: uint64
-    size: uint64
-    osize: Option[uint64]
+    timestamp*: uint64
+    size*: uint64
+    osize*: Option[uint64]
   Repomd* = object of RootObj
     revision*: uint64
     data*: seq[Data]

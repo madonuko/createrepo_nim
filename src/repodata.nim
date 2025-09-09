@@ -1,1 +1,1 @@
-import repodata/repomd
+import repodata/[repomd, primary, filelists, group, other]
