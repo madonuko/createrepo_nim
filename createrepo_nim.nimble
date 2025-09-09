@@ -13,4 +13,4 @@ bin           = @["createrepo_nim"]
 requires "nim >= 2.0.0"
 requires "cligen"
 requires "bingo"
-
+# requires "cattag"

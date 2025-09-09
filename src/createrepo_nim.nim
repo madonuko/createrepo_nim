@@ -1,9 +1,6 @@
-# This is just an example to get you started. A typical binary package
-# uses this file as the main entry point of the application.
-
 import std/[options, paths, dirs]
 
-import ./cache
+import ./[cache, repodata]
 
 iterator findAllRpms(path: Path): Path =
   for path in walkDirRec(path, relative = true, skipSpecial = true, followFilter = {pcDir, pcLinkToDir}):
