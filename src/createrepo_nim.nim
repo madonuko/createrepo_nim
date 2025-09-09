@@ -1,7 +1,7 @@
 import
   std/[
     options, paths, dirs, os, tables, osproc, asyncfutures, asyncdispatch, strformat,
-    times, strutils
+    times, strutils, sets
   ]
 
 import ./[cache, rpm]
@@ -51,10 +51,14 @@ proc createrepo_nim(repo_path = ".", comps = "", cache = "/tmp/createrepo_nim/ca
   ##
   ## Scans `repo_path` recursively to find all RPMs, then remove and recreate `./repodata/`.
   var (cachePath, cache) = (cache, getCache(cache))
+  var ec = initHashSet[string](cache.len) # existence check
+  for k in cache.keys:
+    ec.incl k
   var filelists: seq[FileListPkg] = @[]
   var primary: seq[PrimaryPkg] = @[]
   var other: seq[OtherPkg] = @[]
   for path in findAllRpms repo_path.Path:
+    ec.excl path.string
     let rpm = make_rpm(path.string, cache)
     filelists.add(rpm.filelist)
     primary.add(rpm.primary)
@@ -71,6 +75,8 @@ proc createrepo_nim(repo_path = ".", comps = "", cache = "/tmp/createrepo_nim/ca
   if comps != "":
     data.add waitFor handleXml(comps, "group", writeGroup)
   writeRepomd("./repodata/repomd.xml", data)
+  for k in ec:
+    cache.del k
   writeCache(cachePath, cache)
 
 when isMainModule:
