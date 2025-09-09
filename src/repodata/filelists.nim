@@ -1,4 +1,4 @@
-import std/[syncio, strformat, sequtils, strutils, sugar]
+import std/[asyncdispatch, asyncfile, syncio, strformat, sequtils, strutils, sugar]
 
 type FileListPkg* = object
   pkgid*: string
@@ -13,11 +13,12 @@ proc file(f: tuple[typ: string, path: string]): string =
   if f.typ == "": fmt"<file>{f.path}</file>"
   else: fmt"<file type='{f.typ}'>{f.path}</file>"
 
-proc writeFilelists(path: string, pkgs: seq[FileListPkg]) =
-  var f = open(path, fmWrite)
+proc writeFilelists*(path: string, pkgs: seq[FileListPkg]): Future[int64] {.async.} =
+  var f = openAsync(path, fmWrite)
   defer: close f
-  f.write fmt"<filelists xmlns='http://linux.duke.edu/metadata/filelists' packages='{pkgs.len}'>"
+  await f.write fmt"<filelists xmlns='http://linux.duke.edu/metadata/filelists' packages='{pkgs.len}'>"
   for p in pkgs:
     let files = p.files.map(f => file(f)).join
-    f.write fmt"<package pkgid='{p.pkgid}' name='{p.name}' arch='{p.arch}'><version epoch='{p.epoch}' ver='{p.ver}' rel='{p.rel}'/>{files}</package>"
-  f.write "</filelists>"
+    await f.write fmt"<package pkgid='{p.pkgid}' name='{p.name}' arch='{p.arch}'><version epoch='{p.epoch}' ver='{p.ver}' rel='{p.rel}'/>{files}</package>"
+  await f.write "</filelists>"
+  f.getFileSize

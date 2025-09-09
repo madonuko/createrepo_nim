@@ -5,9 +5,12 @@ import ./[repodata, rpm]
 type Cache* = Table[string, tuple[mtime: Time, rpm: Rpm]]
 
 proc getCache*(path: string): Cache =
-  let f = newFileStream(path)
-  defer: close f
-  f.loadBin result
+  try:
+    let f = newFileStream(path)
+    defer: close f
+    f.loadBin result
+  except:
+    discard
 
 proc writeCache*(path: string, cache: Cache) =
   let f = newFileStream(path, fmWrite)

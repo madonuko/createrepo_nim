@@ -1,4 +1,4 @@
-import std/[syncio, strformat, sequtils, strutils, sugar]
+import std/[asyncdispatch, asyncfile, syncio, strformat, sequtils, strutils, sugar]
 
 type
   OtherPkg* = object of RootObj
@@ -14,11 +14,12 @@ type
     date*: int
     message*: string
     
-proc writeOther*(path: string, packages: seq[OtherPkg]) =
-  let f = open(path, fmWrite)
+proc writeOther*(path: string, packages: seq[OtherPkg]): Future[int64] {.async.} =
+  let f = openAsync(path, fmWrite)
   defer: close f
-  f.write fmt"<otherdata xmlns='http://linux.duke.edu/metadata/other' packages='{packages.len}'>"
+  await f.write fmt"<otherdata xmlns='http://linux.duke.edu/metadata/other' packages='{packages.len}'>"
   for p in packages:
     let changelogs = p.changelogs.map(c => fmt"<changelog author='{c.author}' date='{c.date}'>{c.message}</changelog>").join
-    f.write fmt"<package pkgid='{p.pkgid}' name='{p.name}' arch='{p.arch}'><version epoch='{p.epoch}' ver='{p.ver}' rel='{p.rel}'/>{changelogs}</package>"
-  f.write "</otherdata>"
+    await f.write fmt"<package pkgid='{p.pkgid}' name='{p.name}' arch='{p.arch}'><version epoch='{p.epoch}' ver='{p.ver}' rel='{p.rel}'/>{changelogs}</package>"
+  await f.write "</otherdata>"
+  f.getFileSize

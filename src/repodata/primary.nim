@@ -1,4 +1,4 @@
-import std/[syncio, strformat, sequtils, strutils, sugar, options]
+import std/[asyncdispatch, asyncfile, syncio, strformat, sequtils, strutils, sugar, options]
 
 type
   PrimaryPkg* = object of RootObj
@@ -54,10 +54,11 @@ proc make(pkg: PrimaryPkg): string =
     result.add(fmt"<rpm:entry name='{provide.name}' flags='{provide.flags}' epoch='{provide.epoch}' ver='{provide.ver}' rel='{provide.rel}'/>")
   result.add("</rpm:provides></format></package>")
 
-proc writePrimary*(path: string, pkgs: seq[PrimaryPkg]) =
-  var f = open(path, fmWrite)
+proc writePrimary*(path: string, pkgs: seq[PrimaryPkg]): Future[int64] {.async.} =
+  var f = openAsync(path, fmWrite)
   defer: close f
-  f.write fmt"<metadata xmlns='http://linux.duke.edu/metadata/common' xmlns:rpm='http://linux.duke.edu/metadata/rpm' packages='{pkgs.len}'>"
+  await f.write fmt"<metadata xmlns='http://linux.duke.edu/metadata/common' xmlns:rpm='http://linux.duke.edu/metadata/rpm' packages='{pkgs.len}'>"
   for pkg in pkgs:
-    f.write(make(pkg))
-  f.write("</metadata>")
+    await f.write(make(pkg))
+  await f.write("</metadata>")
+  f.getFileSize

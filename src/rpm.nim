@@ -11,7 +11,7 @@ type Rpm* = object
   other*: OtherPkg
   filelist*: FileListPkg
 
-proc sha256sum(path: string): string =
+proc sha256sum*(path: string): string =
   execCmdEx("sha256sum "&path).output.split(' ')[0]
 
 type DepKind = enum

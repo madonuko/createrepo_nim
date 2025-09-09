@@ -6,19 +6,19 @@ type
     csum*: string ## <checksum type="sha256" />
     osum*: Option[string] ## <open-checksum type="sha256" />
     location_href*: string
-    timestamp*: uint64
+    # timestamp*: uint64
     size*: uint64
     osize*: Option[uint64]
   Repomd* = object of RootObj
     revision*: uint64
     data*: seq[Data]
 
-proc make_data*(data: Data): string =
+proc make_data(data: Data): string =
   var inner = fmt"<checksum type='sha256'>{data.csum}</checksum>"
   if data.osum.isSome:
     inner &= fmt"<open-checksum type='sha256'>{data.osum.get}</checksum>"
   inner &= fmt"<location href='{data.location_href}'/>"
-  inner &= fmt"<timestamp>{data.timestamp}</timestamp>"
+  inner &= fmt"<timestamp>{toUnix(getTime())}</timestamp>"
   inner &= fmt"<size>{data.size}</size>"
   if data.osize.isSome:
     inner &= fmt"<open-size>{data.osize.get}</open-size>"
