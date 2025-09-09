@@ -1,6 +1,6 @@
-import std/[options, paths, dirs, times, os, sequtils, enumerate, sugar, syncio, streams, tables]
+import std/[options, os, syncio, streams, tables]
 import bingo
-import ./[repodata, rpm]
+import ./rpm
 
 type Cache* = Table[string, tuple[mtime: int64, rpm: Rpm]]
 

@@ -2,7 +2,7 @@
 ## 
 ## ? https://github.com/rpm-software-management/createrepo_c/blob/e801cbe98e3e2d120aa480e353c44f0224502de3/src/parsehdr.c#L184
 import std/nativesockets # htonl
-import std/[strformat, times, osproc, strutils, options, paths]
+import std/[strformat, osproc, strutils, options, paths]
 import ./librpm
 import ./repodata/[primary, other, filelists]
 

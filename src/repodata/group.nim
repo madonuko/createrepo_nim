@@ -1,4 +1,4 @@
-import std/[asyncdispatch, syncio, strformat, sequtils, strutils, sugar, os]
+import std/[asyncdispatch, strutils, os]
   
 proc writeGroup*(path: string, comps: string): Future[int64] {.async.} =
   copyFile(comps, path)

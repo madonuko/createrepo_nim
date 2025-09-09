@@ -1,4 +1,4 @@
-import std/[asyncdispatch, asyncfile, syncio, strformat, sequtils, strutils, sugar, options]
+import std/[asyncdispatch, asyncfile, syncio, strformat, strutils, options]
 
 type
   PrimaryPkg* = object of RootObj

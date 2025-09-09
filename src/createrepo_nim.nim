@@ -1,7 +1,7 @@
 import
   std/[
     options, paths, dirs, os, tables, osproc, asyncfutures, asyncdispatch, strformat,
-    sugar, times, strutils
+    times, strutils
   ]
 
 import ./[cache, rpm]
@@ -49,7 +49,7 @@ proc handleXml[T](
 proc createrepo_nim(repo_path = ".", comps = "", cache = "/tmp/createrepo_nim/cache") =
   ## Alternative to createrepo_c
   ##
-  ## Scans `repo_path` recursively to find all RPMs, then populate/update `repodata/` automatically.
+  ## Scans `repo_path` recursively to find all RPMs, then remove and recreate `./repodata/`.
   var (cachePath, cache) = (cache, getCache(cache))
   var filelists: seq[FileListPkg] = @[]
   var primary: seq[PrimaryPkg] = @[]
@@ -59,9 +59,9 @@ proc createrepo_nim(repo_path = ".", comps = "", cache = "/tmp/createrepo_nim/ca
     filelists.add(rpm.filelist)
     primary.add(rpm.primary)
     other.add(rpm.other)
-  if dirExists(fmt"{repo_path}/repodata"):
-    removeDir(fmt"{repo_path}/repodata")
-  createDir(fmt"{repo_path}/repodata")
+  if dirExists(fmt"./repodata"):
+    removeDir(fmt"./repodata")
+  createDir(fmt"./repodata")
   createDir("/tmp/createrepo_nim")
   var data = waitFor all(
     handleXml(filelists, "filelists", writeFilelists),
