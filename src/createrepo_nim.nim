@@ -5,7 +5,7 @@ import
   ]
 
 import ./[cache, rpm]
-import ./repodata/[filelists, primary, other, repomd]
+import ./repodata/[filelists, primary, other, group, repomd]
 
 proc make_rpm(path: string, cache: var Cache): Rpm =
   # stat and check mtime
@@ -35,7 +35,7 @@ proc zstdCompressFile(src, dest: string): Future[int64] {.async.} =
   getFileInfo(dest).size.int64
 
 proc handleXml[T](
-    rpms: seq[T], typ: string, f: proc(path: string, pkgs: seq[T]): Future[int64]
+    rpms: T, typ: string, f: proc(path: string, pkgs: T): Future[int64]
 ): Future[Data] {.async.} =
   result.osize = some uint64 await f(fmt"/tmp/createrepo_nim/{typ}.xml", rpms)
   result.osum = some sha256sum(fmt"/tmp/createrepo_nim/{typ}.xml")
@@ -47,7 +47,7 @@ proc handleXml[T](
   result.typ = typ
   result.location_href = fmt"./repodata/{result.csum}-{typ}.xml.zst"
 
-proc main(repo_path: string = ".", comps = "", cache = "/tmp/createrepo_nim/cache") =
+proc main(repo_path = ".", comps = "", cache = "/tmp/createrepo_nim/cache") =
   ## Alternative to createrepo_c
   ##
   ## Scans `repo_path` recursively to find all RPMs, then populate/update `repodata/` automatically.
@@ -62,14 +62,14 @@ proc main(repo_path: string = ".", comps = "", cache = "/tmp/createrepo_nim/cach
     other.add(rpm.other)
   createDir(fmt"{repo_path}/repodata")
   createDir("/tmp/createrepo_nim")
-  writeRepomd(
-    "./repodata/repomd.xml",
-    waitFor all(
-      handleXml(filelists, "filelists", writeFilelists),
-      handleXml(primary, "primary", writePrimary),
-      handleXml(other, "other", writeOther),
-    ),
+  var data = waitFor all(
+    handleXml(filelists, "filelists", writeFilelists),
+    handleXml(primary, "primary", writePrimary),
+    handleXml(other, "other", writeOther),
   )
+  if comps != "":
+    data.add waitFor handleXml(comps, "group", writeGroup)
+  writeRepomd("./repodata/repomd.xml", data)
 
 when isMainModule:
   import cligen
