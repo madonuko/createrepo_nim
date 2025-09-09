@@ -1,17 +1,15 @@
-import std/[options, paths, dirs, times, os, sequtils, enumerate, sugar, syncio, streams]
+import std/[options, paths, dirs, times, os, sequtils, enumerate, sugar, syncio, streams, tables]
 import bingo
+import ./[repodata, rpm]
 
-type Cache = object of RootObj
-  rpms: seq[tuple[path: string, mtime: Time]]
+type Cache* = Table[string, tuple[mtime: Time, rpm: Rpm]]
 
 proc getCache*(path: string): Cache =
   let f = newFileStream(path)
   defer: close f
   f.loadBin result
 
-proc writeCache*(path: string, rpms: seq[Path]) =
-  var cache: Cache
-  cache.rpms = rpms.map(r => (path: $r, mtime: getFileInfo($r).lastWriteTime))
+proc writeCache*(path: string, cache: Cache) =
   let f = newFileStream(path, fmWrite)
   defer: close f
   f.storeBin cache
