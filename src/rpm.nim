@@ -47,7 +47,12 @@ proc parseEVR(evr: string): (Option[int], Option[string], Option[string]) =
   if evr.len == 0: return (none(int), none(string), none(string))
   let evrParts = evr.split(":")
   if evrParts.len == 2:
-    let epoch = some(evrParts[0].parseInt)
+    let epoch = block:
+      try:
+        some(evrParts[0].parseInt())
+      except ValueError:
+        echo "Invalid epoch value from: " & evr
+        some(0)
     let verRel = evrParts[1].split("-")
     let ver = some(verRel[0])
     let rel = if verRel.len > 1: some(verRel[1]) else: none(string)
