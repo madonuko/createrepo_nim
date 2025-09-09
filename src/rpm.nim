@@ -2,9 +2,11 @@
 ## 
 ## ? https://github.com/rpm-software-management/createrepo_c/blob/e801cbe98e3e2d120aa480e353c44f0224502de3/src/parsehdr.c#L184
 import std/nativesockets # htonl
-import std/[strformat, times, osproc, strutils, options]
+import std/[strformat, times, osproc, strutils, options, paths]
 import ./librpm
 import ./repodata/[primary, other, filelists]
+
+discard rpmReadConfigFiles(nil, nil)
 
 type Rpm* = object
   primary*: PrimaryPkg
@@ -135,11 +137,6 @@ proc collectFiles(h: Header): seq[tuple[typ: string, path: string]] =
   discard rpmtdInit(dirindexes)
   discard rpmtdInit(fileflags)
   discard rpmtdInit(filemodes)
-  defer:
-    discard rpmtdFree(basenames)
-    discard rpmtdFree(dirindexes)
-    discard rpmtdFree(fileflags)
-    discard rpmtdFree(filemodes)
   while (rpmtdNext(basenames) != -1 and
           rpmtdNext(dirindexes) != -1 and
           rpmtdNext(fileflags) != -1 and
@@ -164,7 +161,7 @@ proc headerByteRange(path: string): tuple[start, end_z: int64] =
   defer:
     close f
   f.setFilePos 104
-  var bytes: seq[uint8]
+  var bytes: seq[uint8] = @[0, 0]
   if f.readBytes(bytes, 0, 2) != 2:
     raise newException(IOError, "Failed to read header byte range")
   let
@@ -229,19 +226,21 @@ proc collectChangelogs(h: Header): seq[Changelog] =
       else:
         last_time = time
           
-proc rpm*(path: string, mtime: Time): Rpm =
-  # 1. Initialize rpm library and open the package
-  discard rpmReadConfigFiles(nil, nil)
-  let ts = rpmtsCreate()
-  let fd = Fopen(path.cstring, "r")
+proc rpm*(path: string): Rpm =
+  let
+    ts = rpmtsCreate()
+    abspath = path.Path.absolutePath
+    fd = Fopen(abspath.cstring, "r")
   if fd == nil:
-    raise newException(IOError, "Failed to open RPM file: " & path)
+    raise newException(IOError, "Failed to open RPM file: " & $abspath)
   defer:
     discard Fclose fd
     discard rpmtsFree ts
-  let h = cast[Header](rpmReadPackageFile(ts, fd, nil, nil))
+  var h = headerNew()
+  if rpmReadPackageFile(ts, fd, nil, addr h) != RPMRC_OK:
+    raise newException(IOError, "Failed to read RPM header: " & $abspath)
   if cast[pointer](h).isNil:
-    raise newException(IOError, "Failed to read RPM header: " & path)
+    raise newException(IOError, "nil header pointer" & $abspath)
   defer:
     discard headerFree(h)
 
@@ -303,3 +302,4 @@ proc rpm*(path: string, mtime: Time): Rpm =
 
   # 5. Return result
   result = Rpm(primary: primary, other: other, filelist: filelist)
+  echo $abspath

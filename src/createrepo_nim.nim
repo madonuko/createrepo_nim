@@ -1,25 +1,24 @@
 import
   std/[
     options, paths, dirs, os, tables, osproc, asyncfutures, asyncdispatch, strformat,
-    sugar,
+    sugar, times, strutils
   ]
 
 import ./[cache, rpm]
 import ./repodata/[filelists, primary, other, group, repomd]
 
 proc make_rpm(path: string, cache: var Cache): Rpm =
-  # stat and check mtime
-  let mtime = getFileInfo(path).lastWriteTime
-  if cache.hasKey(path) and cache[path].mtime == mtime:
+  let mtime = getFileInfo(path).lastWriteTime.toUnix
+  if path in cache and cache[path].mtime == mtime:
     return cache[path].rpm
-  result = rpm(path, mtime)
+  result = rpm(path)
   cache[path] = (mtime, result)
 
 iterator findAllRpms(path: Path): Path =
   for path in walkDirRec(
     path, relative = true, skipSpecial = true, followFilter = {pcDir, pcLinkToDir}
   ):
-    if path.splitFile.ext == "rpm":
+    if ($path).endsWith(".rpm"):
       yield path
 
 proc zstdCompressFile(src, dest: string): Future[int64] {.async.} =
@@ -51,7 +50,7 @@ proc main(repo_path = ".", comps = "", cache = "/tmp/createrepo_nim/cache") =
   ## Alternative to createrepo_c
   ##
   ## Scans `repo_path` recursively to find all RPMs, then populate/update `repodata/` automatically.
-  var cache = getCache(cache)
+  var (cachePath, cache) = (cache, getCache(cache))
   var filelists: seq[FileListPkg] = @[]
   var primary: seq[PrimaryPkg] = @[]
   var other: seq[OtherPkg] = @[]
@@ -60,6 +59,8 @@ proc main(repo_path = ".", comps = "", cache = "/tmp/createrepo_nim/cache") =
     filelists.add(rpm.filelist)
     primary.add(rpm.primary)
     other.add(rpm.other)
+  if dirExists(fmt"{repo_path}/repodata"):
+    removeDir(fmt"{repo_path}/repodata")
   createDir(fmt"{repo_path}/repodata")
   createDir("/tmp/createrepo_nim")
   var data = waitFor all(
@@ -70,6 +71,7 @@ proc main(repo_path = ".", comps = "", cache = "/tmp/createrepo_nim/cache") =
   if comps != "":
     data.add waitFor handleXml(comps, "group", writeGroup)
   writeRepomd("./repodata/repomd.xml", data)
+  writeCache(cachePath, cache)
 
 when isMainModule:
   import cligen
