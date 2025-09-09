@@ -17,7 +17,7 @@ proc make_data*(data: Data): string =
   var inner = fmt"<checksum type='sha256'>{data.csum}</checksum>"
   if data.osum.isSome:
     inner &= fmt"<open-checksum type='sha256'>{data.osum.get}</checksum>"
-  inner &= fmt"<location href='data.location_href'/>"
+  inner &= fmt"<location href='{data.location_href}'/>"
   inner &= fmt"<timestamp>{data.timestamp}</timestamp>"
   inner &= fmt"<size>{data.size}</size>"
   if data.osize.isSome:
