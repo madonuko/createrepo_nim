@@ -46,7 +46,7 @@ proc handleXml[T](
   result.typ = typ
   result.location_href = fmt"./repodata/{result.csum}-{typ}.xml.zst"
 
-proc main(repo_path = ".", comps = "", cache = "/tmp/createrepo_nim/cache") =
+proc createrepo_nim(repo_path = ".", comps = "", cache = "/tmp/createrepo_nim/cache") =
   ## Alternative to createrepo_c
   ##
   ## Scans `repo_path` recursively to find all RPMs, then populate/update `repodata/` automatically.
@@ -75,6 +75,6 @@ proc main(repo_path = ".", comps = "", cache = "/tmp/createrepo_nim/cache") =
 
 when isMainModule:
   import cligen
-  dispatch main,
+  dispatch createrepo_nim,
     help =
       {"repo_path": "path to the repo (not repodata!)", "comps": "path to comps.xml"}
