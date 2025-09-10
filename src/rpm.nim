@@ -2,10 +2,11 @@
 ## 
 ## ? https://github.com/rpm-software-management/createrepo_c/blob/e801cbe98e3e2d120aa480e353c44f0224502de3/src/parsehdr.c#L184
 import std/nativesockets # htonl
-import std/[strformat, osproc, strutils, options, paths]
+import std/[strformat, osproc, strutils, options, paths, os]
 import ./librpm
 import ./repodata/[primary, other, filelists]
 
+let sha256sum_bin = findExe("sha256sum")
 discard rpmReadConfigFiles(nil, nil)
 
 type Rpm* = object
@@ -232,7 +233,10 @@ proc collectChangelogs(h: Header): seq[Changelog] =
         last_time = time
           
 proc rpm*(path: string): Rpm =
+  echo path
+  # 1. Initialize rpm library and open the package
   let
+    csum_process = startProcess(sha256sum_bin, args=[path])
     ts = rpmtsCreate()
     abspath = path.Path.absolutePath
     fd = Fopen(abspath.cstring, "r")
@@ -266,7 +270,6 @@ proc rpm*(path: string): Rpm =
   primary.size.installed = headerGetNumber(h, cast[rpmTagVal](RPMTAG_LONGSIZE)).int
   primary.size.archive = headerGetNumber(h, cast[rpmTagVal](RPMTAG_ARCHIVESIZE)).int
   primary.location = path
-  primary.checksum = sha256sum(path)
   primary.format.license = $headerGetString(h, cast[rpmTagVal](RPMTAG_LICENSE))
   primary.format.vendor = $headerGetString(h, cast[rpmTagVal](RPMTAG_VENDOR))
   primary.format.group = $headerGetString(h, cast[rpmTagVal](RPMTAG_GROUP))
@@ -305,6 +308,9 @@ proc rpm*(path: string): Rpm =
   filelist.rel = primary.rel
   filelist.files = collectFiles(h)
 
+  discard csum_process.waitForExit()
+  let (lines, _) = csum_process.readLines
+  primary.checksum = lines[0].split(' ')[0]
+  close csum_process
   # 5. Return result
   result = Rpm(primary: primary, other: other, filelist: filelist)
-  echo $abspath

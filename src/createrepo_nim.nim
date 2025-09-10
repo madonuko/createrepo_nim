@@ -63,9 +63,9 @@ proc createrepo_nim(repo_path = ".", comps = "", cache = "/tmp/createrepo_nim/ca
     filelists.add(rpm.filelist)
     primary.add(rpm.primary)
     other.add(rpm.other)
-  if dirExists(fmt"./repodata"):
-    removeDir(fmt"./repodata")
-  createDir(fmt"./repodata")
+  if dirExists("./repodata"):
+    removeDir("./repodata")
+  createDir("./repodata")
   createDir("/tmp/createrepo_nim")
   var data = waitFor all(
     handleXml(filelists, "filelists", writeFilelists),
