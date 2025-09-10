@@ -290,7 +290,6 @@ proc rpm*(path: string): Rpm =
   
   # 3. Extract fields for OtherPkg
   var other: OtherPkg
-  other.pkgid = primary.checksum
   other.name = primary.name
   other.arch = primary.arch
   other.epoch = primary.epoch
@@ -300,7 +299,6 @@ proc rpm*(path: string): Rpm =
 
   # 4. Extract fields for FileListPkg
   var filelist: FileListPkg
-  filelist.pkgid = primary.checksum
   filelist.name = primary.name
   filelist.arch = primary.arch
   filelist.epoch = primary.epoch
@@ -311,6 +309,8 @@ proc rpm*(path: string): Rpm =
   discard csum_process.waitForExit()
   let (lines, _) = csum_process.readLines
   primary.checksum = lines[0].split(' ')[0]
+  filelist.pkgid = primary.checksum
+  other.pkgid = primary.checksum
   close csum_process
   # 5. Return result
   result = Rpm(primary: primary, other: other, filelist: filelist)
