@@ -1,5 +1,7 @@
 import std/[asyncdispatch, asyncfile, syncio, strformat, strutils, options]
 
+import ./xmlutils
+
 type
   PrimaryPkg* = object of RootObj
     name*: string
@@ -49,9 +51,12 @@ type
 proc make(pkg: PrimaryPkg): string =
   result = "<package type='rpm'>"
   result.add fmt"<name>{pkg.name}</name><arch>{pkg.arch}</arch><version epoch='{pkg.epoch}' ver='{pkg.ver}' rel='{pkg.rel}'/>"
-  result.add fmt"<checksum type='sha256' pkgid='YES'>{pkg.checksum}</checksum><summary>{pkg.summary}</summary><description>{pkg.description}</description><packager>{pkg.packager}</packager><url>{pkg.url}</url><time file='{pkg.time.file}' build='{pkg.time.build}'/><size package='{pkg.size.package}' installed='{pkg.size.installed}' archive='{pkg.size.archive}'/><location href='{pkg.location}'/><format><rpm:license>{pkg.format.license}</rpm:license><rpm:vendor>{pkg.format.vendor}</rpm:vendor><rpm:group>{pkg.format.group}</rpm:group><rpm:buildhost>{pkg.format.buildhost}</rpm:buildhost><rpm:sourcerpm>{pkg.format.sourcerpm}</rpm:sourcerpm><rpm:header_range start='{pkg.format.header_range_start}' end='{pkg.format.header_range_end}'/><rpm:provides>"
+  result.add fmt"<checksum type='sha256' pkgid='YES'>{pkg.checksum}</checksum><summary>{pkg.summary}</summary><description>{pkg.description}</description><packager>{xmlEscape(pkg.packager)}</packager><url>{pkg.url}</url><time file='{pkg.time.file}' build='{pkg.time.build}'/><size package='{pkg.size.package}' installed='{pkg.size.installed}' archive='{pkg.size.archive}'/><location href='{pkg.location}'/><format><rpm:license>{pkg.format.license}</rpm:license><rpm:vendor>{pkg.format.vendor}</rpm:vendor><rpm:group>{pkg.format.group}</rpm:group><rpm:buildhost>{pkg.format.buildhost}</rpm:buildhost><rpm:sourcerpm>{pkg.format.sourcerpm}</rpm:sourcerpm><rpm:header-range start='{pkg.format.header_range_start}' end='{pkg.format.header_range_end}'/><rpm:provides>"
   for provide in pkg.format.provides:
-    result.add(fmt"<rpm:entry name='{provide.name}' flags='{provide.flags}' epoch='{provide.epoch}' ver='{provide.ver}' rel='{provide.rel}'/>")
+    if provide.flags.isSome:
+      result.add(fmt"<rpm:entry name='{provide.name}' flags='{provide.flags.get}' epoch='{provide.epoch.get}' ver='{provide.ver.get}' rel='{provide.rel.get}'/>")
+    else:
+      result.add(fmt"<rpm:entry name='{provide.name}'/>")
   result.add("</rpm:provides></format></package>")
 
 proc writePrimary*(path: string, pkgs: seq[PrimaryPkg]): Future[int64] {.async.} =

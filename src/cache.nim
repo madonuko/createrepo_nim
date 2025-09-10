@@ -17,4 +17,3 @@ proc writeCache*(path: string, cache: Cache) =
   let f = newFileStream(path, fmWrite)
   defer: close f
   f.storeBin cache
-

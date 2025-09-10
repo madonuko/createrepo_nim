@@ -2,12 +2,9 @@
 ## 
 ## ? https://github.com/rpm-software-management/createrepo_c/blob/e801cbe98e3e2d120aa480e353c44f0224502de3/src/parsehdr.c#L184
 import std/nativesockets # htonl
-import std/[strformat, osproc, strutils, options, paths, os]
+import std/[strformat, osproc, strutils, options, paths]
 import ./librpm
 import ./repodata/[primary, other, filelists]
-
-let sha256sum_bin = findExe("sha256sum")
-discard rpmReadConfigFiles(nil, nil)
 
 type Rpm* = object
   primary*: PrimaryPkg
@@ -47,22 +44,22 @@ proc parseEVR(evr: string): (Option[int], Option[string], Option[string]) =
   # Parse epoch:version-release
   if evr.len == 0: return (none(int), none(string), none(string))
   let evrParts = evr.split(":")
+  var epoch = some(0)
+  var evr = evr
   if evrParts.len == 2:
-    let epoch = block:
+    epoch = block:
       try:
-        some(evrParts[0].parseInt())
+        if evrParts[0].len == 0:
+          some(0)
+        else:
+          some(evrParts[0].parseInt())
       except ValueError:
-        echo "Invalid epoch value from: " & evr
         some(0)
-    let verRel = evrParts[1].split("-")
-    let ver = some(verRel[0])
-    let rel = if verRel.len > 1: some(verRel[1]) else: none(string)
-    return (epoch, ver, rel)
-  else:
-    let verRel = evr.split("-")
-    let ver = some(verRel[0])
-    let rel = if verRel.len > 1: some(verRel[1]) else: none(string)
-    return (none(int), ver, rel)
+    evr = evrParts[1]
+  let verRel = evr.split("-")
+  let ver = some(verRel[0])
+  let rel = if verRel.len > 1: some(verRel[1]) else: some("")
+  return (some(0), ver, rel)
 
 proc collectPCRE(h: Header): tuple[
   provides, requires, conflicts, obsoletes, enhances, suggests, supplements, recommends: seq[PkgDep]
@@ -231,29 +228,21 @@ proc collectChangelogs(h: Header): seq[Changelog] =
           dec idx
       else:
         last_time = time
-          
-proc rpm*(path: string): Rpm =
-  echo path
-  # 1. Initialize rpm library and open the package
+
+proc rpm*(path: string, ts: var rpmts, h: var Header): Rpm {.gcsafe, thread.} =
   let
-    csum_process = startProcess(sha256sum_bin, args=[path])
-    ts = rpmtsCreate()
+    csum_process = startProcess("sha256sum", args=[path], options={poUsePath})
     abspath = path.Path.absolutePath
     fd = Fopen(abspath.cstring, "r")
   if fd == nil:
     raise newException(IOError, "Failed to open RPM file: " & $abspath)
   defer:
     discard Fclose fd
-    discard rpmtsFree ts
-  var h = headerNew()
   if rpmReadPackageFile(ts, fd, nil, addr h) != RPMRC_OK:
     raise newException(IOError, "Failed to read RPM header: " & $abspath)
   if cast[pointer](h).isNil:
     raise newException(IOError, "nil header pointer" & $abspath)
-  defer:
-    discard headerFree(h)
 
-  # 2. Extract fields for PrimaryPkg
   var primary: PrimaryPkg
   primary.name = $headerGetString(h, cast[rpmTagVal](RPMTAG_NAME))
   primary.arch = $headerGetString(h, cast[rpmTagVal](RPMTAG_ARCH))
@@ -288,7 +277,6 @@ proc rpm*(path: string): Rpm =
   primary.format.recommends = pcre.recommends
   primary.format.obsoletes = pcre.obsoletes
   
-  # 3. Extract fields for OtherPkg
   var other: OtherPkg
   other.name = primary.name
   other.arch = primary.arch
@@ -297,7 +285,6 @@ proc rpm*(path: string): Rpm =
   other.rel = primary.rel
   other.changelogs = collectChangelogs(h)
 
-  # 4. Extract fields for FileListPkg
   var filelist: FileListPkg
   filelist.name = primary.name
   filelist.arch = primary.arch
@@ -312,5 +299,4 @@ proc rpm*(path: string): Rpm =
   filelist.pkgid = primary.checksum
   other.pkgid = primary.checksum
   close csum_process
-  # 5. Return result
   result = Rpm(primary: primary, other: other, filelist: filelist)
