@@ -238,7 +238,10 @@ proc rpm*(path: string, ts: var rpmts, h: var Header): Rpm {.gcsafe, thread.} =
     raise newException(IOError, "Failed to open RPM file: " & $abspath)
   defer:
     discard Fclose fd
-  if rpmReadPackageFile(ts, fd, nil, addr h) != RPMRC_OK:
+  case rpmReadPackageFile(ts, fd, nil, addr h)
+  of RPMRC_OK, RPMRC_NOKEY, RPMRC_NOTTRUSTED:
+    discard
+  else:
     raise newException(IOError, "Failed to read RPM header: " & $abspath)
   if cast[pointer](h).isNil:
     raise newException(IOError, "nil header pointer" & $abspath)
